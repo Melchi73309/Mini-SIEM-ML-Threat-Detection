@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>File Monitor - Mini SIEM</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #020b17; font-family: 'Courier New', monospace; color: #00ffc3; min-height: 100vh; }
+nav {
+    background: #061726; border-bottom: 1px solid rgba(0,255,195,0.2);
+    padding: 15px 30px; display: flex; align-items: center; justify-content: space-between;
+}
+.nav-brand { font-size: 1.1rem; font-weight: bold; }
+.nav-links a { color: rgba(0,255,195,0.7); text-decoration: none; margin-left: 20px; font-size: 0.9rem; }
+.nav-links a:hover, .nav-links a.active { color: #00ffc3; }
+.nav-user { font-size: 0.85rem; color: rgba(0,255,195,0.6); }
+.main { padding: 40px; max-width: 900px; margin: 0 auto; }
+.page-title { font-size: 1.4rem; margin-bottom: 10px; }
+.subtitle { font-size: 0.85rem; color: rgba(0,255,195,0.5); margin-bottom: 30px; }
+.monitor-card {
+    background: #061726; border: 1px solid rgba(0,255,195,0.2);
+    border-radius: 12px; padding: 35px; margin-bottom: 25px;
+}
+.info-box {
+    background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,195,0.1);
+    border-radius: 8px; padding: 16px 20px; margin-bottom: 25px;
+    font-size: 0.82rem; color: rgba(0,255,195,0.55); line-height: 1.7;
+}
+.info-box b { color: rgba(0,255,195,0.85); }
+.info-box code {
+    display: inline-block; background: rgba(0,0,0,0.5);
+    padding: 2px 8px; border-radius: 4px; color: #00ffc3; font-size: 0.82rem;
+}
+.controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 25px; }
+.btn {
+    padding: 11px 25px; border-radius: 6px; border: none; cursor: pointer;
+    font-family: monospace; font-size: 0.9rem; font-weight: bold; transition: all 0.2s;
+    text-decoration: none; display: inline-block;
+}
+.btn-primary   { background: #00ffc3; color: #020b17; }
+.btn-primary:hover { background: #00e0aa; }
+.btn-danger    { background: rgba(255,68,68,0.15); color: #ff4444; border: 1px solid rgba(255,68,68,0.4); }
+.btn-danger:hover { background: rgba(255,68,68,0.25); }
+.btn-secondary { background: transparent; color: #00ffc3; border: 1px solid rgba(0,255,195,0.4); }
+.btn-secondary:hover { background: rgba(0,255,195,0.1); }
+#status-bar {
+    padding: 12px 16px; border-radius: 6px; font-size: 0.88rem; margin-bottom: 20px; display: none;
+}
+#status-bar.success { background: rgba(0,255,195,0.08); border: 1px solid rgba(0,255,195,0.3); color: #00ffc3; }
+#status-bar.error   { background: rgba(255,50,50,0.08);  border: 1px solid rgba(255,50,50,0.3);  color: #ff6464; }
+#status-bar.info    { background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,195,0.15); color: rgba(0,255,195,0.7); }
+.log-output {
+    background: #010d18; border: 1px solid rgba(0,255,195,0.1);
+    border-radius: 8px; padding: 15px; min-height: 200px; max-height: 400px;
+    overflow-y: auto; font-size: 0.8rem; line-height: 1.6;
+    color: rgba(0,255,195,0.65);
+}
+.log-line { padding: 2px 0; border-bottom: 1px solid rgba(0,255,195,0.04); }
+.log-line:last-child { border-bottom: none; }
+.log-line.HIGH     { color: #ff4444; }
+.log-line.CRITICAL { color: #cc0000; }
+.log-line.MEDIUM   { color: #ffc800; }
+.log-line.LOW      { color: rgba(0,255,195,0.55); }
+.stats-row {
+    display: flex; gap: 15px; flex-wrap: wrap; margin-top: 20px;
+}
+.stat-mini {
+    background: rgba(0,255,195,0.05); border: 1px solid rgba(0,255,195,0.15);
+    border-radius: 8px; padding: 12px 20px; text-align: center; flex: 1; min-width: 80px;
+}
+.stat-mini .n  { font-size: 1.6rem; font-weight: bold; }
+.stat-mini .lb { font-size: 0.72rem; color: rgba(0,255,195,0.5); text-transform: uppercase; letter-spacing: 1px; }
+.dot { width: 8px; height: 8px; background: #00ffc3; border-radius: 50%; display: inline-block; animation: blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.1} }
+</style>
+</head>
+<body>
+<nav>
+    <div class="nav-brand">🛡 Mini SIEM</div>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/manual">Manual Detection</a>
+        <a href="/upload">Log Upload</a>
+        <a href="/monitoring" class="active">File Monitor</a>
+        <a href="/map">Geo Map</a>
+    </div>
+    <div class="nav-user">
+        {{ username }} &nbsp;|&nbsp;
+        <a href="/logout" style="color:#ff6464;text-decoration:none;">Logout</a>
+    </div>
+</nav>
+
+<div class="main">
+    <div class="page-title">File-Based Log Monitor</div>
+    <div class="subtitle">Continuously reads <code>logs/sample.log</code> and processes all entries into your dashboard.</div>
+
+    <div class="monitor-card">
+        <div class="info-box">
+            <b>How it works:</b><br>
+            1. The monitor reads <code>logs/sample.log</code> in the project directory.<br>
+            2. Each log line is parsed, detected, and stored in your private alerts database.<br>
+            3. All results appear immediately in your Dashboard.<br>
+            4. Click <b>Process Now</b> to run once, or <b>Auto-Monitor</b> to poll every 10 seconds.
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" onclick="processNow()">▶ Process Now</button>
+            <button class="btn btn-primary" id="autoBtn"  onclick="startAuto()" style="background:rgba(0,255,195,0.7);">⏱ Auto-Monitor</button>
+            <button class="btn btn-danger"  id="stopBtn"  onclick="stopAuto()"  style="display:none;">⏹ Stop</button>
+            <a href="/dashboard" class="btn btn-secondary">← Dashboard</a>
+        </div>
+
+        <div id="status-bar"></div>
+
+        <div style="margin-bottom:10px;font-size:0.78rem;color:rgba(0,255,195,0.4);">
+            <span id="auto-indicator"></span>
+            Log output:
+        </div>
+        <div class="log-output" id="logOutput">
+            <div class="log-line" style="color:rgba(0,255,195,0.3);">Waiting for processing... Click "Process Now" to start.</div>
+        </div>
+
+        <div class="stats-row" id="statsRow" style="display:none;">
+            <div class="stat-mini">
+                <div class="n" id="s-total">0</div>
+                <div class="lb">Processed</div>
+            </div>
+            <div class="stat-mini">
+                <div class="n" style="color:#cc0000;" id="s-critical">0</div>
+                <div class="lb">Critical</div>
+            </div>
+            <div class="stat-mini">
+                <div class="n" style="color:#ff4444;" id="s-high">0</div>
+                <div class="lb">High</div>
+            </div>
+            <div class="stat-mini">
+                <div class="n" style="color:#ffc800;" id="s-medium">0</div>
+                <div class="lb">Medium</div>
+            </div>
+            <div class="stat-mini">
+                <div class="n" style="color:#00ffc3;" id="s-low">0</div>
+                <div class="lb">Low</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let autoInterval = null;
+let totalProcessed = 0, totalCritical = 0, totalHigh = 0, totalMedium = 0, totalLow = 0;
+
+function setStatus(msg, type='info') {
+    const bar = document.getElementById('status-bar');
+    bar.textContent = msg;
+    bar.className   = type;
+    bar.style.display = 'block';
+}
+
+async function processNow() {
+    setStatus('⏳ Processing logs/sample.log...', 'info');
+    const logDiv = document.getElementById('logOutput');
+
+    try {
+        const resp = await fetch('/api/monitor_file', { method: 'POST' });
+        const data = await resp.json();
+
+        if (data.error) {
+            setStatus('✖ Error: ' + data.error, 'error');
+            return;
+        }
+
+        setStatus('✔ ' + data.message, 'success');
+        totalProcessed += data.processed;
+
+        const ts   = new Date().toLocaleTimeString();
+        const line = document.createElement('div');
+        line.className = 'log-line';
+        line.textContent = `[${ts}] Processed ${data.processed} log entries from sample.log → stored in dashboard`;
+        logDiv.appendChild(line);
+        logDiv.scrollTop = logDiv.scrollHeight;
+
+        document.getElementById('s-total').textContent = totalProcessed;
+        document.getElementById('statsRow').style.display = 'flex';
+
+    } catch(e) {
+        setStatus('✖ Network error: ' + e.message, 'error');
+    }
+}
+
+function startAuto() {
+    if (autoInterval) return;
+    document.getElementById('autoBtn').style.display = 'none';
+    document.getElementById('stopBtn').style.display = 'inline-block';
+    document.getElementById('auto-indicator').innerHTML = '<span class="dot"></span> Auto-monitoring active (every 10s) &nbsp;';
+    processNow();
+    autoInterval = setInterval(processNow, 10000);
+}
+
+function stopAuto() {
+    clearInterval(autoInterval);
+    autoInterval = null;
+    document.getElementById('autoBtn').style.display = 'inline-block';
+    document.getElementById('stopBtn').style.display = 'none';
+    document.getElementById('auto-indicator').textContent = '';
+    setStatus('Auto-monitor stopped.', 'info');
+}
+</script>
+</body>
+</html>

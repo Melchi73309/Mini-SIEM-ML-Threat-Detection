@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard - Mini SIEM</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #020b17; font-family: 'Courier New', monospace; color: #00ffc3; min-height: 100vh; }
+nav {
+    background: #061726; border-bottom: 1px solid rgba(0,255,195,0.2);
+    padding: 15px 30px; display: flex; align-items: center; justify-content: space-between;
+}
+.nav-brand { font-size: 1.1rem; font-weight: bold; }
+.nav-links a { color: rgba(0,255,195,0.7); text-decoration: none; margin-left: 20px; font-size: 0.9rem; }
+.nav-links a:hover, .nav-links a.active { color: #00ffc3; }
+.nav-user  { font-size: 0.85rem; color: rgba(0,255,195,0.6); }
+.main { padding: 30px; max-width: 1400px; margin: 0 auto; }
+.page-title { font-size: 1.4rem; margin-bottom: 22px; display: flex; align-items: center; gap: 10px; }
+.live-dot {
+    width: 10px; height: 10px; background: #00ffc3;
+    border-radius: 50%; animation: blink 1s infinite; display: inline-block;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+.stats-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 15px; margin-bottom: 22px; }
+.stat-card {
+    background: #061726; border: 1px solid rgba(0,255,195,0.2);
+    border-radius: 10px; padding: 20px; text-align: center;
+}
+.stat-card.critical { border-color: rgba(180,0,0,.5); }
+.stat-card.high     { border-color: rgba(255,50,50,.5); }
+.stat-card.medium   { border-color: rgba(255,200,0,.4); }
+.stat-card.low      { border-color: rgba(0,255,195,.3); }
+.stat-number { font-size: 2.2rem; font-weight: bold; margin-bottom: 5px; }
+.stat-number.critical { color: #8b0000; }
+.stat-number.high     { color: #ff4444; }
+.stat-number.medium   { color: #ffc800; }
+.stat-number.low      { color: #00ffc3; }
+.stat-number.total    { color: #ffffff; }
+.stat-label { font-size: .8rem; color: rgba(0,255,195,.6); text-transform: uppercase; letter-spacing: 1px; }
+
+.top-attacker-bar {
+    background: rgba(180,0,0,.1); border: 1px solid rgba(180,0,0,.4);
+    border-radius: 8px; padding: 12px 20px; margin-bottom: 22px;
+    display: flex; align-items: center; gap: 15px; font-size: .9rem;
+}
+.top-attacker-bar .label { color: rgba(255,255,255,.6); text-transform: uppercase; font-size: .75rem; letter-spacing: 1px; }
+.top-attacker-bar .ip    { color: #ff4444; font-weight: bold; font-size: 1rem; }
+.top-attacker-bar .count { color: rgba(255,100,100,.8); font-size: .85rem; }
+
+.sim-controls { display: flex; gap: 10px; margin-bottom: 22px; align-items: center; flex-wrap: wrap; }
+.btn {
+    padding: 9px 20px; border-radius: 6px; border: none; cursor: pointer;
+    font-family: monospace; font-size: .9rem; font-weight: bold;
+    transition: all .2s; text-decoration: none; display: inline-block;
+}
+.btn-sim  { background: #00ffc3; color: #020b17; }
+.btn-sim:hover { background: #00e0aa; }
+.btn-stop { background: transparent; color: #ff4444; border: 1px solid #ff4444; }
+.btn-stop:hover { background: rgba(255,68,68,.1); }
+.btn-nav  { background: rgba(0,255,195,.1); color: #00ffc3; border: 1px solid rgba(0,255,195,.3); }
+.btn-nav:hover { background: rgba(0,255,195,.2); }
+#sim-status { font-size: .85rem; color: rgba(0,255,195,.6); }
+
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 22px; }
+.chart-card {
+    background: #061726; border: 1px solid rgba(0,255,195,.15);
+    border-radius: 10px; padding: 20px;
+}
+.chart-title {
+    font-size: .9rem; color: rgba(0,255,195,.7);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px;
+}
+.chart-container { position: relative; height: 200px; }
+
+.alerts-section {
+    background: #061726; border: 1px solid rgba(0,255,195,.15);
+    border-radius: 10px; padding: 20px;
+}
+.alerts-title {
+    font-size: .9rem; color: rgba(0,255,195,.7);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px;
+    display: flex; justify-content: space-between; align-items: center;
+}
+table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+th {
+    color: rgba(0,255,195,.5); text-align: left;
+    padding: 8px 10px; border-bottom: 1px solid rgba(0,255,195,.1);
+    font-size: .78rem; text-transform: uppercase; letter-spacing: .5px;
+}
+td { padding: 10px; border-bottom: 1px solid rgba(0,255,195,.05); vertical-align: middle; }
+tr:hover td { background: rgba(0,255,195,.03); }
+
+.badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: .76rem; font-weight: bold; text-transform: uppercase; }
+.badge-CRITICAL { background: rgba(139,0,0,.3); color: #cc0000; border: 1px solid rgba(139,0,0,.5); }
+.badge-HIGH     { background: rgba(255,50,50,.15); color: #ff4444; border: 1px solid rgba(255,68,68,.4); }
+.badge-MEDIUM   { background: rgba(255,200,0,.15); color: #ffc800; border: 1px solid rgba(255,200,0,.4); }
+.badge-LOW      { background: rgba(0,255,195,.1);  color: #00ffc3; border: 1px solid rgba(0,255,195,.3); }
+
+.attack-brute      { color: #cc0000; }
+.attack-suspicious { color: #ffc800; }
+.attack-normal     { color: rgba(0,255,195,.7); }
+.ip-cell    { font-family: monospace; color: rgba(255,255,255,.9); }
+.event-cell { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(0,255,195,.8); }
+.ts-cell    { color: rgba(0,255,195,.4); font-size: .78rem; }
+.num-cell   { color: rgba(0,255,195,.6); text-align: center; }
+.no-alerts  { text-align: center; padding: 40px; color: rgba(0,255,195,.3); }
+@media (max-width: 900px) {
+    .stats-grid  { grid-template-columns: repeat(3,1fr); }
+    .charts-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<nav>
+    <div class="nav-brand">🛡 Mini SIEM</div>
+    <div class="nav-links">
+        <a href="/dashboard" class="active">Dashboard</a>
+        <a href="/manual">Manual Detection</a>
+        <a href="/upload">Log Upload</a>
+        <a href="/monitoring">File Monitor</a>
+        <a href="/map">Geo Map</a>
+    </div>
+    <div class="nav-user">
+        {{ username }} &nbsp;|&nbsp;
+        <a href="/logout" style="color:#ff6464;text-decoration:none;">Logout</a>
+    </div>
+</nav>
+
+<div class="main">
+    <div class="page-title"><span class="live-dot"></span>Security Dashboard</div>
+
+    <div id="ml-banner" style="background:rgba(0,255,195,0.06);border:1px solid rgba(0,255,195,0.2);border-radius:8px;padding:10px 18px;margin-bottom:18px;font-size:0.82rem;color:rgba(0,255,195,0.7);display:flex;align-items:center;gap:12px;">
+        <span style="color:rgba(0,255,195,0.4);">ML Engine:</span>
+        <span id="ml-status-text">checking...</span>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number total">{{ total }}</div>
+            <div class="stat-label">Total Alerts</div>
+        </div>
+        <div class="stat-card critical">
+            <div class="stat-number critical">{{ critical }}</div>
+            <div class="stat-label">Critical</div>
+        </div>
+        <div class="stat-card high">
+            <div class="stat-number high">{{ high }}</div>
+            <div class="stat-label">High</div>
+        </div>
+        <div class="stat-card medium">
+            <div class="stat-number medium">{{ medium }}</div>
+            <div class="stat-label">Medium</div>
+        </div>
+        <div class="stat-card low">
+            <div class="stat-number low">{{ low }}</div>
+            <div class="stat-label">Low</div>
+        </div>
+    </div>
+
+    {% if top_attacker %}
+    <div class="top-attacker-bar">
+        <span class="label">⚠ Top Attacker:</span>
+        <span class="ip">{{ top_attacker.ip }}</span>
+        <span class="count">({{ top_attacker.count }} events)</span>
+    </div>
+    {% endif %}
+
+    <div class="sim-controls">
+        <button class="btn btn-sim"  id="simBtn"  onclick="startSimulation()">▶ Start Live Simulation</button>
+        <button class="btn btn-stop" id="stopBtn" onclick="stopSimulation()" style="display:none;">⏹ Stop</button>
+        <a href="/manual"     class="btn btn-nav">+ Manual Entry</a>
+        <a href="/upload"     class="btn btn-nav">↑ Upload Logs</a>
+        <a href="/monitoring" class="btn btn-nav">📁 File Monitor</a>
+        <span id="sim-status"></span>
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-card">
+            <div class="chart-title">Risk Level Distribution</div>
+            <div class="chart-container"><canvas id="riskChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title">Top Attacking IPs</div>
+            <div class="chart-container"><canvas id="ipChart"></canvas></div>
+        </div>
+    </div>
+
+    <div class="alerts-section">
+        <div class="alerts-title">
+            <span>Recent Alerts — Latest First (Your Data Only)</span>
+            <span style="font-size:.8rem;color:rgba(0,255,195,.4);">Auto-updating during simulation</span>
+        </div>
+        <div id="alertsTableContainer">
+        {% if alerts %}
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Timestamp</th>
+                    <th>IP</th>
+                    <th>Event</th>
+                    <th>Attack Type</th>
+                    <th>Risk</th>
+                    <th>Score</th>
+                    <th>Att/Fail</th>
+                    <th>Source</th>
+                </tr>
+            </thead>
+            <tbody id="alertsBody">
+                {% for a in alerts %}
+                <tr>
+                    <td class="ts-cell">{{ a.id }}</td>
+                    <td class="ts-cell">{{ a.time }}</td>
+                    <td class="ip-cell">{{ a.ip }}</td>
+                    <td class="event-cell" title="{{ a.event }}">{{ a.event }}</td>
+                    <td class="{% if a.attack_type == 'Brute Force Attack' %}attack-brute{% elif 'Suspicious' in (a.attack_type or '') %}attack-suspicious{% else %}attack-normal{% endif %}">
+                        {{ a.attack_type }}
+                    </td>
+                    <td><span class="badge badge-{{ a.risk }}">{{ a.risk }}</span></td>
+                    <td class="num-cell">{{ a.score }}</td>
+                    <td class="num-cell">{{ a.attempts or 0 }}/{{ a.failed or 0 }}</td>
+                    <td style="color:rgba(0,255,195,.35);font-size:.77rem;">{{ a.source }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="no-alerts">No alerts yet. Start simulation, add an entry manually, upload a log file, or use the File Monitor.</div>
+        {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+let simInterval = null, chartRisk = null, chartIp = null;
+
+async function initCharts() {
+    try {
+        const data = await (await fetch('/api/chart_data')).json();
+        const rl   = data.risk_levels || {};
+        const tips = data.top_ips     || [];
+
+        if (chartRisk) chartRisk.destroy();
+        chartRisk = new Chart(document.getElementById('riskChart').getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(rl),
+                datasets: [{
+                    data: Object.values(rl),
+                    backgroundColor: ['#8b0000','#ff4444','#ffc800','#00ffc3'],
+                    borderColor: '#061726', borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { color:'rgba(0,255,195,.7)', font:{family:'Courier New'} } } }
+            }
+        });
+
+        if (chartIp) chartIp.destroy();
+        chartIp = new Chart(document.getElementById('ipChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: tips.map(d => d.ip),
+                datasets: [{ label:'Alerts', data: tips.map(d => d.count),
+                    backgroundColor:'rgba(0,255,195,.3)', borderColor:'#00ffc3', borderWidth:1 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks:{color:'rgba(0,255,195,.6)',font:{family:'Courier New',size:11}}, grid:{color:'rgba(0,255,195,.05)'} },
+                    y: { ticks:{color:'rgba(0,255,195,.6)',font:{family:'Courier New'}},         grid:{color:'rgba(0,255,195,.05)'}, beginAtZero:true }
+                }
+            }
+        });
+    } catch(e) { console.error(e); }
+}
+
+async function refreshAlerts() {
+    try {
+        const alerts = await (await fetch('/api/recent_alerts')).json();
+        if (!Array.isArray(alerts) || !alerts.length) return;
+
+        let tbody = document.getElementById('alertsBody');
+        if (!tbody) {
+            document.getElementById('alertsTableContainer').innerHTML = `
+                <table><thead><tr>
+                  <th>#</th><th>Timestamp</th><th>IP</th><th>Event</th>
+                  <th>Attack Type</th><th>Risk</th><th>Score</th><th>Att/Fail</th><th>Source</th>
+                </tr></thead><tbody id="alertsBody"></tbody></table>`;
+            tbody = document.getElementById('alertsBody');
+        }
+        tbody.innerHTML = '';
+        alerts.forEach(a => {
+            const tc = a.attack_type === 'Brute Force Attack' ? 'attack-brute'
+                     : (a.attack_type || '').includes('Suspicious') ? 'attack-suspicious'
+                     : 'attack-normal';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="ts-cell">${a.id}</td>
+                <td class="ts-cell">${a.time||''}</td>
+                <td class="ip-cell">${a.ip||''}</td>
+                <td class="event-cell" title="${a.event||''}">${a.event||''}</td>
+                <td class="${tc}">${a.attack_type||''}</td>
+                <td><span class="badge badge-${a.risk}">${a.risk}</span></td>
+                <td class="num-cell">${a.score}</td>
+                <td class="num-cell">${a.attempts||0}/${a.failed||0}</td>
+                <td style="color:rgba(0,255,195,.35);font-size:.77rem;">${a.source||''}</td>`;
+            tbody.appendChild(tr);
+        });
+    } catch(e) {}
+}
+
+function startSimulation() {
+    if (simInterval) return;
+    document.getElementById('simBtn').style.display  = 'none';
+    document.getElementById('stopBtn').style.display = 'inline-block';
+    document.getElementById('sim-status').textContent = 'Simulating live threats...';
+    simInterval = setInterval(async () => {
+        await fetch('/api/simulate');
+        await refreshAlerts();
+        await initCharts();
+    }, 2000);
+}
+
+function stopSimulation() {
+    clearInterval(simInterval); simInterval = null;
+    document.getElementById('simBtn').style.display  = 'inline-block';
+    document.getElementById('stopBtn').style.display = 'none';
+    document.getElementById('sim-status').textContent = 'Simulation stopped.';
+}
+
+initCharts();
+
+(async function checkMlStatus() {
+    try {
+        const d = await (await fetch('/api/ml_status')).json();
+        const el     = document.getElementById('ml-status-text');
+        const banner = document.getElementById('ml-banner');
+        if (d.model_loaded) {
+            el.innerHTML = `<span style="color:#00ffc3;">&#10003; RandomForest model active &mdash; ${d.features} features</span>`;
+            banner.style.borderColor = 'rgba(0,255,195,0.35)';
+        } else {
+            el.innerHTML = `<span style="color:#ffc800;">&#9888; Model unavailable &mdash; rule-based fallback active</span>`;
+            banner.style.borderColor = 'rgba(255,200,0,0.35)';
+        }
+    } catch(e) {
+        document.getElementById('ml-status-text').textContent = 'status check failed';
+    }
+})();
+</script>
+</body>
+</html>

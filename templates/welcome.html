@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Welcome - Mini SIEM</title>
+<meta http-equiv="refresh" content="3;url=/dashboard">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: #020b17; font-family: 'Courier New', monospace; color: #00ffc3;
+    display: flex; justify-content: center; align-items: center;
+    min-height: 100vh; flex-direction: column;
+}
+.welcome-box {
+    text-align: center; padding: 60px 50px;
+    background: #061726; border: 1px solid #00ffc3;
+    border-radius: 16px; max-width: 500px;
+    box-shadow: 0 0 40px rgba(0,255,195,0.15);
+}
+.shield-icon { font-size: 4rem; margin-bottom: 20px; animation: glow 2s infinite; }
+@keyframes glow {
+    0%,100% { text-shadow: 0 0 10px rgba(0,255,195,0.5); }
+    50%      { text-shadow: 0 0 30px rgba(0,255,195,1); }
+}
+h1 { font-size: 2rem; margin-bottom: 10px; }
+.username { color: #ffffff; }
+p  { color: rgba(0,255,195,0.7); margin-bottom: 30px; font-size: 0.95rem; }
+.status-bar {
+    background: rgba(0,255,195,0.05); border: 1px solid rgba(0,255,195,0.2);
+    border-radius: 8px; padding: 15px; margin-bottom: 30px;
+    font-size: 0.85rem; color: rgba(0,255,195,0.8);
+}
+.status-item { display: flex; justify-content: space-between; padding: 3px 0; }
+.status-ok   { color: #00ffc3; }
+.btn {
+    display: inline-block; padding: 14px 40px; background: #00ffc3;
+    color: #020b17; font-weight: bold; border-radius: 8px;
+    text-decoration: none; font-family: monospace; font-size: 1rem; transition: all 0.2s;
+}
+.btn:hover { background: #00e0aa; box-shadow: 0 0 20px rgba(0,255,195,0.4); }
+</style>
+</head>
+<body>
+<div class="welcome-box">
+    <div class="shield-icon">🛡</div>
+    <h1>Welcome back, <span class="username">{{ username }}</span>!</h1>
+    <p>Security system authenticated. Redirecting to dashboard...</p>
+
+    <div class="status-bar">
+        <div class="status-item">
+            <span>Authentication</span>
+            <span class="status-ok">✔ Verified</span>
+        </div>
+        <div class="status-item">
+            <span>Session</span>
+            <span class="status-ok">✔ Active</span>
+        </div>
+        <div class="status-item">
+            <span>User Isolation</span>
+            <span class="status-ok">✔ Enabled</span>
+        </div>
+        <div class="status-item">
+            <span>Threat Monitor</span>
+            <span class="status-ok">✔ Online</span>
+        </div>
+    </div>
+
+    <a href="/dashboard" class="btn">Go to Dashboard &rarr;</a>
+</div>
+</body>
+</html>
