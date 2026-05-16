@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login - Mini SIEM</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: #020b17; font-family: 'Courier New', monospace; color: #00ffc3;
+    display: flex; justify-content: center; align-items: center; min-height: 100vh;
+}
+.container {
+    width: 420px; background: #061726; padding: 45px 40px;
+    border-radius: 12px; border: 1px solid #00ffc3;
+    box-shadow: 0 0 30px rgba(0,255,195,0.1);
+}
+.logo { text-align: center; font-size: 0.8rem; color: rgba(0,255,195,0.5); margin-bottom: 5px; }
+h2   { text-align: center; margin-bottom: 30px; font-size: 1.5rem; }
+.input-group { margin-bottom: 20px; position: relative; }
+label { display: block; margin-bottom: 6px; font-size: 0.9rem; color: rgba(0,255,195,0.8); }
+input {
+    width: 100%; padding: 12px 15px; background: #020b17;
+    border: 1px solid rgba(0,255,195,0.4); color: #00ffc3;
+    border-radius: 6px; font-family: monospace; font-size: 0.95rem; transition: border 0.2s;
+}
+input:focus { outline: none; border-color: #00ffc3; box-shadow: 0 0 8px rgba(0,255,195,0.2); }
+.toggle-eye {
+    position: absolute; right: 12px; top: 37px;
+    cursor: pointer; user-select: none; font-size: 0.85rem; color: rgba(0,255,195,0.6);
+}
+button {
+    width: 100%; padding: 13px; background: #00ffc3; border: none;
+    color: #020b17; font-weight: bold; border-radius: 6px; cursor: pointer;
+    font-family: monospace; font-size: 1rem; transition: background 0.2s; margin-top: 5px;
+}
+button:hover { background: #00e0aa; }
+.message { padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 0.9rem; text-align: center; }
+.message.error   { background: rgba(255,50,50,0.1); border: 1px solid rgba(255,50,50,0.4); color: #ff6464; }
+.message.success { background: rgba(0,255,195,0.1); border: 1px solid rgba(0,255,195,0.4); color: #00ffc3; }
+.links { text-align: center; margin-top: 20px; font-size: 0.85rem; }
+.links a { color: #00ffc3; text-decoration: none; }
+.links a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="logo">[ MINI SIEM SECURITY SYSTEM ]</div>
+    <h2>Login</h2>
+
+    {% if registered %}
+    <div class="message success">Account created! Please login.</div>
+    {% endif %}
+
+    {% if message %}
+    <div class="message error">{{ message }}</div>
+    {% endif %}
+
+    <form method="POST">
+        <div class="input-group">
+            <label>Username</label>
+            <input type="text" name="username" placeholder="Enter username" required autofocus>
+        </div>
+        <div class="input-group">
+            <label>Password</label>
+            <input type="password" name="password" id="password" placeholder="Enter password" required>
+            <span class="toggle-eye" onclick="toggleField('password', this)">show</span>
+        </div>
+        <div class="input-group">
+            <label>PIN</label>
+            <input type="password" name="pin" id="pin" placeholder="Enter PIN" maxlength="6" required>
+            <span class="toggle-eye" onclick="toggleField('pin', this)">show</span>
+        </div>
+        <button type="submit">Login &rarr;</button>
+    </form>
+
+    <div class="links">
+        <a href="/register">Create an account</a>
+        &nbsp;|&nbsp;
+        <a href="/">Home</a>
+    </div>
+</div>
+
+<script>
+function toggleField(id, el) {
+    const field = document.getElementById(id);
+    field.type  = field.type === 'password' ? 'text' : 'password';
+    el.textContent = field.type === 'password' ? 'show' : 'hide';
+}
+</script>
+</body>
+</html>
